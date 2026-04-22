@@ -138,3 +138,207 @@ func lexer(js_code string) []Token {
 
 	return tokens
 }
+
+/* Grammar
+
+---- Expression ----
+
+Expression
+    ::= AssignmentExpression
+     | LogicalOrExpression
+
+LogicalOrExpression
+    ::= LogicalAndExpression
+     | LogicalOrExpression "||" LogicalAndExpression
+     | LogicalOrExpression "??" LogicalAndExpression
+
+LogicalAndExpression
+    ::= BitwiseOrExpression
+     | LogicalAndExpression "&&" BitwiseOrExpression
+
+BitwiseOrExpression
+    ::= BitwiseXorExpression
+     | BitwiseOrExpression "|" BitwiseXorExpression
+
+BitwiseXorExpression
+    ::= BitwiseAndExpression
+     | BitwiseXorExpression "^" BitwiseAndExpression
+
+BitwiseAndExpression
+    ::= EqualityExpression
+     | BitwiseAndExpression "&" EqualityExpression
+
+EqualityExpression
+    ::= RelationalExpression
+     | EqualityExpression "==" RelationalExpression
+     | EqualityExpression "!=" RelationalExpression
+     | EqualityExpression "===" RelationalExpression
+     | EqualityExpression "!==" RelationalExpression
+
+RelationalExpression
+    ::= ShiftExpression
+     | RelationalExpression "<" ShiftExpression
+     | RelationalExpression ">" ShiftExpression
+     | RelationalExpression "<=" ShiftExpression
+     | RelationalExpression ">=" ShiftExpression
+
+ShiftExpression
+    ::= AdditiveExpression
+     | ShiftExpression "<<" AdditiveExpression
+     | ShiftExpression ">>" AdditiveExpression
+     | ShiftExpression ">>>" AdditiveExpression
+
+AdditiveExpression
+    ::= MultiplicativeExpression
+     | AdditiveExpression "+" MultiplicativeExpression
+     | AdditiveExpression "-" MultiplicativeExpression
+
+MultiplicativeExpression
+    ::= ExponentiationExpression
+     | MultiplicativeExpression "*" ExponentiationExpression
+     | MultiplicativeExpression "/" ExponentiationExpression
+     | MultiplicativeExpression "%" ExponentiationExpression
+
+ExponentiationExpression
+    ::= UnaryExpression
+     | UnaryExpression "**" ExponentiationExpression
+
+UnaryExpression
+    ::= PostfixExpression
+     | "+" UnaryExpression
+     | "-" UnaryExpression
+     | "!" UnaryExpression
+     | "~" UnaryExpression
+     | "typeof" UnaryExpression
+     | "void" UnaryExpression
+     | "delete" UnaryExpression
+     | "++" UnaryExpression
+     | "--" UnaryExpression
+
+PostfixExpression
+    ::= LeftHandSideExpression
+     | LeftHandSideExpression "++"
+     | LeftHandSideExpression "--"
+
+LeftHandSideExpression
+    ::= CallExpression
+     | MemberExpression
+     | PrimaryExpression
+
+CallExpression
+    ::= LeftHandSideExpression Arguments
+
+Arguments
+    ::= "(" ArgumentList? ")"
+
+ArgumentList
+    ::= Expression ("," Expression)*
+
+PrimaryExpression
+    ::= Literal
+     | Identifier
+     | "(" Expression ")"
+     | ArrayLiteral
+     | ObjectLiteral
+		 | ConsoleCall
+
+Literal
+    ::= NumberLiteral
+     | StringLiteral
+     | "true"
+     | "false"
+     | "null"
+     | "undefined"
+
+ArrayLiteral
+    ::= "[" (Expression ("," Expression)*)? "]"
+
+ObjectLiteral
+    ::= "{" (PropertyDefinition ("," PropertyDefinition)*)? "}"
+
+PropertyDefinition
+    ::= Identifier ":" Expression
+
+
+---- Variable Declaration ----
+
+VariableStatement
+    ::= ("var" | "let") VariableDeclaratorList Terminator
+     | "const" ConstDeclaratorList Terminator
+
+VariableDeclaratorList
+    ::= VariableDeclarator ("," VariableDeclarator)*
+
+ConstDeclaratorList
+    ::= ConstDeclarator ("," ConstDeclarator)*
+
+VariableDeclarator
+    ::= Identifier ("=" Expression)?
+
+ConstDeclarator
+    ::= Identifier "=" Expression
+
+Terminator
+    ::= ";"
+     | LineTerminator
+     | EOF
+
+
+---- Variable Assignment ----
+
+AssignmentStatement
+    ::= AssignmentExpression Terminator
+
+AssignmentExpression
+    ::= AssignmentTarget AssignmentOperator Expression
+
+AssignmentTarget
+    ::= Identifier
+     | MemberExpression
+
+MemberExpression
+    ::= Identifier "." Identifier
+     | Identifier "[" Expression "]"
+
+AssignmentOperator
+    ::= "="
+     | "+="
+     | "-="
+     | "*="
+     | "/="
+     | "%="
+     | "**="
+     | "<<="
+     | ">>="
+     | ">>>="
+     | "&="
+     | "|="
+     | "^="
+     | "&&="
+     | "||="
+     | "??="
+
+---- Console ----
+
+ConsoleStatement
+    ::= ConsoleCall Terminator
+
+ConsoleCall
+    ::= "console" "." ConsoleMethod Arguments
+
+ConsoleMethod
+    ::= "log"
+     | "error"
+     | "warn"
+     | "info"
+     | "debug"
+     | "table"
+     | "clear"
+
+Arguments
+    ::= "(" ArgumentList? ")"
+
+ArgumentList
+    ::= Expression ("," Expression)*
+
+*/
