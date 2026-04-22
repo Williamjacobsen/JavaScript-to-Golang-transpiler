@@ -36,11 +36,18 @@ const (
 	TokenString
 	TokenInteger
 	TokenEqual
+	TokenDot
+	TokenLeftParen
+	TokenRightParen
 )
 
 type Token struct {
 	Type  TokenType
 	Value string
+}
+
+func is_supported_symbol(character rune) bool {
+	return character == '=' || character == '.' || character == '(' || character == ')'
 }
 
 func lexer(js_code string) []Token {
@@ -64,7 +71,7 @@ func lexer(js_code string) []Token {
 				} else if unicode.IsDigit(current_char) {
 					state = StateInInteger
 				} else if current_char == ';' || current_char == ' ' || current_char == '\n' || current_char == '\r' || current_char == '\t' {
-				} else if current_char == '=' {
+				} else if is_supported_symbol(current_char) {
 					state = StateInOperator
 				} else {
 					panic(fmt.Sprintf("Lexer Error: Unexpected character '%s' for state '%s'", string(current_char), state))
@@ -75,6 +82,7 @@ func lexer(js_code string) []Token {
 				if !(unicode.IsLetter(current_char) || unicode.IsDigit(current_char) || current_char == '_') {
 					tokens = append(tokens, Token{Value: js_code[start_index:current_index]})
 					state = StateStart
+					current_index-- // 'console.log', without this the '.' would be forgotten
 				}
 			}
 		case StateInString:
@@ -89,13 +97,36 @@ func lexer(js_code string) []Token {
 				if !unicode.IsDigit(current_char) {
 					tokens = append(tokens, Token{Type: TokenInteger, Value: js_code[start_index:current_index]})
 					state = StateStart
+					current_index-- // '10+5' <-- notice that the '+' is right after, it should also be consumed.
 				}
 			}
 		case StateInOperator:
 			{
-				if current_char != '=' {
-					tokens = append(tokens, Token{Type: TokenEqual, Value: "Equal"})
+				if !is_supported_symbol(current_char) {
+					switch string(js_code[start_index:current_index]) {
+					case "=":
+						{
+							tokens = append(tokens, Token{Type: TokenEqual, Value: "Equal"})
+						}
+					case ".":
+						{
+							tokens = append(tokens, Token{Type: TokenDot, Value: "Dot"})
+						}
+					case "(":
+						{
+							tokens = append(tokens, Token{Type: TokenLeftParen, Value: "LeftParen"})
+						}
+					case ")":
+						{
+							tokens = append(tokens, Token{Type: TokenRightParen, Value: "RightParen"})
+						}
+					default:
+						{
+							panic(fmt.Sprintf("Lexer Error: Operator '%s' is not supported.", js_code[start_index:current_index]))
+						}
+					}
 					state = StateStart
+					current_index--
 				}
 			}
 		default:
