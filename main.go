@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"slices"
+	"strconv"
 	"unicode"
 )
 
@@ -188,6 +190,14 @@ type VariableNode struct {
 	Value    Node
 }
 
+type StringNode struct {
+	Value string
+}
+
+type IntegerNode struct {
+	Value int
+}
+
 type ConsoleMethod int
 
 const (
@@ -220,12 +230,18 @@ func (p *Parser) advance() {
 	p.index++
 }
 
-func (p *Parser) consume_expect(expected_token TokenType) Token {
-	if p.current().Type != expected_token {
-		panic(fmt.Sprintf("Parser - consume_expect: Expected token '%s', got token '%s'", expected_token, p.current().Type))
-	}
+func (p *Parser) consume() Token {
+	token := p.current()
 	p.advance()
-	return p.tokens[p.index-1]
+	return token
+}
+
+func (p *Parser) consume_expect(expected_tokens ...TokenType) Token {
+	if slices.Contains(expected_tokens, p.current().Type) {
+		p.advance()
+		return p.tokens[p.index-1]
+	}
+	panic(fmt.Sprintf("Parser - consume_expect: Expected token '%s', got token '%s'", expected_tokens, p.current().Type))
 }
 
 func (p *Parser) peek() Token {
@@ -236,12 +252,34 @@ func is_supported_operator(operator_type TokenType) bool {
 	return operator_type == TokenEqual
 }
 
+func (p *Parser) parse_expression() Node {
+	token := p.consume()
+	switch token.Type {
+	case TokenInteger:
+		{
+			int_value, err := strconv.Atoi(token.Value)
+			if err != nil {
+				panic(err)
+			}
+			return IntegerNode{Value: int_value}
+		}
+	case TokenString:
+		{
+			return StringNode{Value: token.Value}
+		}
+	default:
+		{
+			panic(fmt.Sprintf("Parser - parse_expression: Default case for TokenType: '%s'", token.Type))
+		}
+	}
+}
+
 func (p *Parser) parse_variable() Node {
 	node_variable := VariableNode{}
 
 	node_variable.Name = p.consume_expect(TokenIdentifier).Value
 	node_variable.Operator = string(p.consume_expect(TokenEqual).Type)
-	node_variable.Value = p.consume_expect(TokenInteger).Value
+	node_variable.Value = p.parse_expression()
 
 	fmt.Printf("Variable:\n\tName: %s\n\tOperator: %s\n\tValue: %s\n", node_variable.Name, node_variable.Operator, node_variable.Value)
 
