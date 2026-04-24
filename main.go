@@ -232,8 +232,11 @@ func (p *Parser) peek() Token {
 	return p.tokens[p.index+1]
 }
 
+func is_supported_operator(operator_type TokenType) bool {
+	return operator_type == TokenEqual
+}
+
 func (p *Parser) parse_variable() Node {
-	p.advance()
 	node_variable := VariableNode{}
 
 	node_variable.Name = p.consume_expect(TokenIdentifier).Value
@@ -252,7 +255,16 @@ func (p *Parser) parse_program() Node {
 		switch p.current().Type {
 		case TokenVar, TokenLet:
 			{
+				p.advance()
 				program_node.Body = append(program_node.Body, p.parse_variable())
+			}
+		case TokenIdentifier:
+			{
+				if is_supported_operator(p.peek().Type) {
+					program_node.Body = append(program_node.Body, p.parse_variable())
+				} else {
+					panic("Not implemented yet...")
+				}
 			}
 		default:
 			{
