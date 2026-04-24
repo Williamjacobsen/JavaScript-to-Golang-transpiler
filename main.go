@@ -11,6 +11,10 @@ func main() {
 	fmt.Println("From JavaScript:\n" + js_code)
 	tokens := lexer(js_code)
 	fmt.Println(tokens)
+	root_node := build_ast(tokens)
+	if root_node == nil {
+		panic("Main: Root node is nil.")
+	}
 }
 
 func read_file() string {
@@ -29,16 +33,26 @@ const (
 	StateInOperator   = "StateInOperator"
 )
 
-type TokenType int
+// The Lexer should not handle build-in methods like console.log,
+// they are just TokenIdentifier's, the parser will handle it.
+// The Lexer only handles keywords, operators, etc...
+
+type TokenType string
 
 const (
-	TokenIdentifier = iota
-	TokenString
-	TokenInteger
-	TokenEqual
-	TokenDot
-	TokenLeftParen
-	TokenRightParen
+	TokenIdentifier = "TokenIdentifier"
+
+	TokenString  = "TokenString"
+	TokenInteger = "TokenInteger"
+
+	TokenEqual      = "TokenEqual"
+	TokenDot        = "TokenDot"
+	TokenLeftParen  = "TokenLeftParen"
+	TokenRightParen = "TokenRightParen"
+
+	TokenVar   = "TokenVar"
+	TokenLet   = "TokenLet"
+	TokenConst = "TokenConst"
 )
 
 type Token struct {
@@ -74,13 +88,29 @@ func lexer(js_code string) []Token {
 				} else if is_supported_symbol(current_char) {
 					state = StateInOperator
 				} else {
-					panic(fmt.Sprintf("Lexer Error: Unexpected character '%s' for state '%s'", string(current_char), state))
+					panic(fmt.Sprintf("Lexer Error: Unexpected character '%s' for state '%s'.", string(current_char), state))
 				}
 			}
 		case StateInIdentifier:
 			{
 				if !(unicode.IsLetter(current_char) || unicode.IsDigit(current_char) || current_char == '_') {
-					tokens = append(tokens, Token{Value: js_code[start_index:current_index]})
+					token := js_code[start_index:current_index]
+
+					switch token {
+					case "let":
+						{
+							tokens = append(tokens, Token{Type: TokenLet})
+						}
+					case "const":
+						{
+							tokens = append(tokens, Token{Type: TokenConst})
+						}
+					default:
+						{
+							tokens = append(tokens, Token{Type: TokenIdentifier, Value: token})
+						}
+					}
+
 					state = StateStart
 					current_index-- // 'console.log', without this the '.' would be forgotten
 				}
@@ -106,19 +136,19 @@ func lexer(js_code string) []Token {
 					switch string(js_code[start_index:current_index]) {
 					case "=":
 						{
-							tokens = append(tokens, Token{Type: TokenEqual, Value: "Equal"})
+							tokens = append(tokens, Token{Type: TokenEqual})
 						}
 					case ".":
 						{
-							tokens = append(tokens, Token{Type: TokenDot, Value: "Dot"})
+							tokens = append(tokens, Token{Type: TokenDot})
 						}
 					case "(":
 						{
-							tokens = append(tokens, Token{Type: TokenLeftParen, Value: "LeftParen"})
+							tokens = append(tokens, Token{Type: TokenLeftParen})
 						}
 					case ")":
 						{
-							tokens = append(tokens, Token{Type: TokenRightParen, Value: "RightParen"})
+							tokens = append(tokens, Token{Type: TokenRightParen})
 						}
 					default:
 						{
@@ -131,7 +161,7 @@ func lexer(js_code string) []Token {
 			}
 		default:
 			{
-				panic(fmt.Sprintf("Lexer Error: Unexpected character '%s' for state '%s'", string(current_char), state))
+				panic(fmt.Sprintf("Lexer Error: Unexpected character '%s' for state '%s'.", string(current_char), state))
 			}
 		}
 	}
@@ -139,206 +169,90 @@ func lexer(js_code string) []Token {
 	return tokens
 }
 
-/* Grammar
+type NodeType int
 
----- Expression ----
+const (
+	NodeProgram NodeType = iota
+	NodeVariable
+)
 
-Expression
-    ::= AssignmentExpression
-     | LogicalOrExpression
+type Node any
 
-LogicalOrExpression
-    ::= LogicalAndExpression
-     | LogicalOrExpression "||" LogicalAndExpression
-     | LogicalOrExpression "??" LogicalAndExpression
+type ProgramNode struct {
+	Body []Node
+}
 
-LogicalAndExpression
-    ::= BitwiseOrExpression
-     | LogicalAndExpression "&&" BitwiseOrExpression
+type VariableNode struct {
+	Name  string
+	Value Node
+}
 
-BitwiseOrExpression
-    ::= BitwiseXorExpression
-     | BitwiseOrExpression "|" BitwiseXorExpression
+type ConsoleMethod int
 
-BitwiseXorExpression
-    ::= BitwiseAndExpression
-     | BitwiseXorExpression "^" BitwiseAndExpression
+const (
+	ConsoleLog ConsoleMethod = iota
+	ConsoleWarn
+	ConsoleError
+	ConsoleInfo
+	ConsoleDebug
+)
 
-BitwiseAndExpression
-    ::= EqualityExpression
-     | BitwiseAndExpression "&" EqualityExpression
+type ConsoleCallNode struct {
+	Method ConsoleMethod
+	Args   []Node
+}
 
-EqualityExpression
-    ::= RelationalExpression
-     | EqualityExpression "==" RelationalExpression
-     | EqualityExpression "!=" RelationalExpression
-     | EqualityExpression "===" RelationalExpression
-     | EqualityExpression "!==" RelationalExpression
+type Parser struct {
+	tokens []Token
+	index  int
+}
 
-RelationalExpression
-    ::= ShiftExpression
-     | RelationalExpression "<" ShiftExpression
-     | RelationalExpression ">" ShiftExpression
-     | RelationalExpression "<=" ShiftExpression
-     | RelationalExpression ">=" ShiftExpression
+func NewParser(tokens []Token) *Parser {
+	return &Parser{tokens: tokens, index: 0}
+}
 
-ShiftExpression
-    ::= AdditiveExpression
-     | ShiftExpression "<<" AdditiveExpression
-     | ShiftExpression ">>" AdditiveExpression
-     | ShiftExpression ">>>" AdditiveExpression
+func (p *Parser) current() Token {
+	return p.tokens[p.index]
+}
 
-AdditiveExpression
-    ::= MultiplicativeExpression
-     | AdditiveExpression "+" MultiplicativeExpression
-     | AdditiveExpression "-" MultiplicativeExpression
+func (p *Parser) advance() {
+	p.index++
+}
 
-MultiplicativeExpression
-    ::= ExponentiationExpression
-     | MultiplicativeExpression "*" ExponentiationExpression
-     | MultiplicativeExpression "/" ExponentiationExpression
-     | MultiplicativeExpression "%" ExponentiationExpression
+func (p *Parser) consume_expect(expected_token TokenType) {
+	if p.current().Type != expected_token {
+		panic(fmt.Sprintf("Parser - consume_expect: Expected token '%s', got token '%s'", expected_token, p.current().Type))
+	}
+	p.advance()
+}
 
-ExponentiationExpression
-    ::= UnaryExpression
-     | UnaryExpression "**" ExponentiationExpression
+func (p *Parser) parse_variable() Node {
+	fmt.Println(p.current().Type)
+	p.advance()
+	return NodeVariable
+}
 
-UnaryExpression
-    ::= PostfixExpression
-     | "+" UnaryExpression
-     | "-" UnaryExpression
-     | "!" UnaryExpression
-     | "~" UnaryExpression
-     | "typeof" UnaryExpression
-     | "void" UnaryExpression
-     | "delete" UnaryExpression
-     | "++" UnaryExpression
-     | "--" UnaryExpression
+func (p *Parser) parse_program() Node {
+	program_node := ProgramNode{}
 
-PostfixExpression
-    ::= LeftHandSideExpression
-     | LeftHandSideExpression "++"
-     | LeftHandSideExpression "--"
+	for p.index < len(p.tokens) {
+		switch p.current().Type {
+		case TokenVar, TokenLet:
+			{
+				program_node.Body = append(program_node.Body, p.parse_variable())
+			}
+		default:
+			{
+				panic(fmt.Sprintf("Parser: Case not handled for %s", p.current().Type))
+			}
+		}
+	}
 
-LeftHandSideExpression
-    ::= CallExpression
-     | MemberExpression
-     | PrimaryExpression
+	return program_node
+}
 
-CallExpression
-    ::= LeftHandSideExpression Arguments
-
-Arguments
-    ::= "(" ArgumentList? ")"
-
-ArgumentList
-    ::= Expression ("," Expression)*
-
-PrimaryExpression
-    ::= Literal
-     | Identifier
-     | "(" Expression ")"
-     | ArrayLiteral
-     | ObjectLiteral
-		 | ConsoleCall
-
-Literal
-    ::= NumberLiteral
-     | StringLiteral
-     | "true"
-     | "false"
-     | "null"
-     | "undefined"
-
-ArrayLiteral
-    ::= "[" (Expression ("," Expression)*)? "]"
-
-ObjectLiteral
-    ::= "{" (PropertyDefinition ("," PropertyDefinition)*)? "}"
-
-PropertyDefinition
-    ::= Identifier ":" Expression
-
-
----- Variable Declaration ----
-
-VariableStatement
-    ::= ("var" | "let") VariableDeclaratorList Terminator
-     | "const" ConstDeclaratorList Terminator
-
-VariableDeclaratorList
-    ::= VariableDeclarator ("," VariableDeclarator)*
-
-ConstDeclaratorList
-    ::= ConstDeclarator ("," ConstDeclarator)*
-
-VariableDeclarator
-    ::= Identifier ("=" Expression)?
-
-ConstDeclarator
-    ::= Identifier "=" Expression
-
-Terminator
-    ::= ";"
-     | LineTerminator
-     | EOF
-
-
----- Variable Assignment ----
-
-AssignmentStatement
-    ::= AssignmentExpression Terminator
-
-AssignmentExpression
-    ::= AssignmentTarget AssignmentOperator Expression
-
-AssignmentTarget
-    ::= Identifier
-     | MemberExpression
-
-MemberExpression
-    ::= Identifier "." Identifier
-     | Identifier "[" Expression "]"
-
-AssignmentOperator
-    ::= "="
-     | "+="
-     | "-="
-     | "*="
-     | "/="
-     | "%="
-     | "**="
-     | "<<="
-     | ">>="
-     | ">>>="
-     | "&="
-     | "|="
-     | "^="
-     | "&&="
-     | "||="
-     | "??="
-
----- Console ----
-
-ConsoleStatement
-    ::= ConsoleCall Terminator
-
-ConsoleCall
-    ::= "console" "." ConsoleMethod Arguments
-
-ConsoleMethod
-    ::= "log"
-     | "error"
-     | "warn"
-     | "info"
-     | "debug"
-     | "table"
-     | "clear"
-
-Arguments
-    ::= "(" ArgumentList? ")"
-
-ArgumentList
-    ::= Expression ("," Expression)*
-
-*/
+func build_ast(tokens []Token) Node {
+	parser := NewParser(tokens)
+	program_node := parser.parse_program()
+	return program_node
+}
