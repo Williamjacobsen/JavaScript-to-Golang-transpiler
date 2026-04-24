@@ -183,8 +183,9 @@ type ProgramNode struct {
 }
 
 type VariableNode struct {
-	Name  string
-	Value Node
+	Name     string
+	Operator string
+	Value    Node
 }
 
 type ConsoleMethod int
@@ -219,17 +220,29 @@ func (p *Parser) advance() {
 	p.index++
 }
 
-func (p *Parser) consume_expect(expected_token TokenType) {
+func (p *Parser) consume_expect(expected_token TokenType) Token {
 	if p.current().Type != expected_token {
 		panic(fmt.Sprintf("Parser - consume_expect: Expected token '%s', got token '%s'", expected_token, p.current().Type))
 	}
 	p.advance()
+	return p.tokens[p.index-1]
+}
+
+func (p *Parser) peek() Token {
+	return p.tokens[p.index+1]
 }
 
 func (p *Parser) parse_variable() Node {
-	fmt.Println(p.current().Type)
 	p.advance()
-	return NodeVariable
+	node_variable := VariableNode{}
+
+	node_variable.Name = p.consume_expect(TokenIdentifier).Value
+	node_variable.Operator = string(p.consume_expect(TokenEqual).Type)
+	node_variable.Value = p.consume_expect(TokenInteger).Value
+
+	fmt.Printf("Variable:\n\tName: %s\n\tOperator: %s\n\tValue: %s\n", node_variable.Name, node_variable.Operator, node_variable.Value)
+
+	return node_variable
 }
 
 func (p *Parser) parse_program() Node {
