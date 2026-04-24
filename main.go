@@ -190,6 +190,10 @@ type VariableNode struct {
 	Value    Node
 }
 
+type IdentifierNode struct {
+	Name string
+}
+
 type StringNode struct {
 	Value string
 }
@@ -241,7 +245,7 @@ func (p *Parser) consume_expect(expected_tokens ...TokenType) Token {
 		p.advance()
 		return p.tokens[p.index-1]
 	}
-	panic(fmt.Sprintf("Parser - consume_expect: Expected token '%s', got token '%s'", expected_tokens, p.current().Type))
+	panic(fmt.Sprintf("Parser - consume_expect: Expected token '%s', got token '%s' with value '%s'", expected_tokens, p.current().Type, p.current().Value))
 }
 
 func (p *Parser) peek() Token {
@@ -255,6 +259,10 @@ func is_supported_operator(operator_type TokenType) bool {
 func (p *Parser) parse_expression() Node {
 	token := p.consume()
 	switch token.Type {
+	case TokenIdentifier:
+		{
+			return IdentifierNode{Name: token.Value}
+		}
 	case TokenInteger:
 		{
 			int_value, err := strconv.Atoi(token.Value)
@@ -300,6 +308,18 @@ func (p *Parser) parse_program() Node {
 			{
 				if is_supported_operator(p.peek().Type) {
 					program_node.Body = append(program_node.Body, p.parse_variable())
+				} else if p.current().Value == "console" {
+					p.consume()
+					p.consume_expect(TokenDot)
+					if p.current().Value == "log" {
+						p.consume()
+						p.consume_expect(TokenLeftParen)
+						expression := p.parse_expression()
+						program_node.Body = append(program_node.Body, ConsoleCallNode{Method: ConsoleLog, Args: []Node{expression}})
+						p.consume_expect(TokenRightParen)
+
+						fmt.Printf("Print:\n\tExpression: %s\n", expression)
+					}
 				} else {
 					panic("Not implemented yet...")
 				}
