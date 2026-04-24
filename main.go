@@ -295,7 +295,7 @@ func (p *Parser) parse_variable() Node {
 	return node_variable
 }
 
-func (p *Parser) parse_program() Node {
+func (p *Parser) parse_program() ProgramNode {
 	program_node := ProgramNode{}
 
 	for p.index < len(p.tokens) {
@@ -335,7 +335,7 @@ func (p *Parser) parse_program() Node {
 	return program_node
 }
 
-func build_ast(tokens []Token) Node {
+func build_ast(tokens []Token) ProgramNode {
 	parser := NewParser(tokens)
 	program_node := parser.parse_program()
 	return program_node
@@ -345,9 +345,36 @@ type CodeGenerator struct {
 	output strings.Builder
 }
 
-func (g *CodeGenerator) generate(root Node) string {
+func (g *CodeGenerator) generate(root ProgramNode) string {
 	g.output.WriteString("package main\n\n")
 	g.output.WriteString("import (\n\t\"fmt\"\n)\n\n")
+	g.output.WriteString("func main() {\n")
 
+	for _, node := range root.Body {
+		switch n := node.(type) {
+		case VariableNode:
+			{
+				switch v := n.Value.(type) {
+				case StringNode:
+					{
+						fmt.Fprintf(&g.output, "var %s any = \"%s\"\n", n.Name, v.Value)
+					}
+				case IntegerNode:
+					{
+						fmt.Fprintf(&g.output, "var %s any = %d\n", n.Name, v.Value)
+					}
+				default:
+					{
+						panic(fmt.Sprintf("GodeGenerator - VariableNode - Value.(type) = '%T' not supported", v))
+					}
+				}
+			}
+		case ConsoleCallNode:
+			{
+			}
+		}
+	}
+
+	g.output.WriteString("}")
 	return g.output.String()
 }
