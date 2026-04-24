@@ -5,18 +5,19 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
 func main() {
 	js_code := read_file()
-	fmt.Println("From JavaScript:\n" + js_code)
+	fmt.Println("Input (JavaScript):\n" + js_code)
 	tokens := lexer(js_code)
 	fmt.Println(tokens)
 	root_node := build_ast(tokens)
-	if root_node == nil {
-		panic("Main: Root node is nil.")
-	}
+	generator := &CodeGenerator{}
+	output := generator.generate(root_node)
+	fmt.Println("\nResult:\n" + output)
 }
 
 func read_file() string {
@@ -338,4 +339,15 @@ func build_ast(tokens []Token) Node {
 	parser := NewParser(tokens)
 	program_node := parser.parse_program()
 	return program_node
+}
+
+type CodeGenerator struct {
+	output strings.Builder
+}
+
+func (g *CodeGenerator) generate(root Node) string {
+	g.output.WriteString("package main\n\n")
+	g.output.WriteString("import (\n\t\"fmt\"\n)\n\n")
+
+	return g.output.String()
 }
