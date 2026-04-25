@@ -15,7 +15,9 @@ func main() {
 	tokens := lexer(js_code)
 	fmt.Println(tokens)
 	root_node := build_ast(tokens)
-	generator := &CodeGenerator{}
+	semantic_analyzer := NewSemanticAnalyzer()
+	semantic_analyzer.analyze(root_node)
+	generator := &CodeGenerator{semantic_analysis: *semantic_analyzer}
 	output := generator.generate(root_node)
 	fmt.Println("\nResult:\n" + output)
 }
@@ -341,8 +343,35 @@ func build_ast(tokens []Token) ProgramNode {
 	return program_node
 }
 
+type Scope struct {
+	variables map[string]bool
+}
+
+type SemanticAnalyzer struct {
+	scopes []*Scope
+}
+
+func NewSemanticAnalyzer() *SemanticAnalyzer {
+	s := &SemanticAnalyzer{}
+	s.push_scope()
+	return s
+}
+
+func (s *SemanticAnalyzer) push_scope() {
+	s.scopes = append(s.scopes, &Scope{variables: make(map[string]bool)})
+}
+
+func (s *SemanticAnalyzer) pop_scope() {
+	s.scopes = s.scopes[:len(s.scopes)-1]
+}
+
+func (s *SemanticAnalyzer) analyze(root ProgramNode) {
+	// TODO
+}
+
 type CodeGenerator struct {
-	output strings.Builder
+	semantic_analysis SemanticAnalyzer
+	output            strings.Builder
 }
 
 func (g *CodeGenerator) generate(root ProgramNode) string {
