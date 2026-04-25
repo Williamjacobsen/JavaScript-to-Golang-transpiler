@@ -17,7 +17,7 @@ func main() {
 	root_node := build_ast(tokens)
 	semantic_analyzer := NewSemanticAnalyzer()
 	semantic_analyzer.analyze(root_node)
-	generator := &CodeGenerator{semantic_analysis: *semantic_analyzer}
+	generator := &CodeGenerator{}
 	output := generator.generate(root_node)
 	fmt.Println("\nResult:\n" + output)
 }
@@ -191,6 +191,8 @@ type VariableNode struct {
 	Name     string
 	Operator string
 	Value    Node
+
+	IsDeclared bool
 }
 
 type IdentifierNode struct {
@@ -286,7 +288,7 @@ func (p *Parser) parse_expression() Node {
 }
 
 func (p *Parser) parse_variable() Node {
-	node_variable := VariableNode{}
+	node_variable := &VariableNode{}
 
 	node_variable.Name = p.consume_expect(TokenIdentifier).Value
 	node_variable.Operator = string(p.consume_expect(TokenEqual).Type)
@@ -366,12 +368,28 @@ func (s *SemanticAnalyzer) pop_scope() {
 }
 
 func (s *SemanticAnalyzer) analyze(root ProgramNode) {
-	// TODO
+	for _, node := range root.Body {
+		switch n := node.(type) {
+		case *VariableNode:
+			{
+				if _, exists := s.scopes[len(s.scopes)-1].variables[n.Name]; exists {
+					n.IsDeclared = true
+				} else {
+					n.IsDeclared = false
+					s.scopes[len(s.scopes)-1].variables[n.Name] = true
+				}
+			}
+		default:
+			{
+				// Skip everything but what we need to transpile (assume the JavaScript is correct).
+				// panic(fmt.Sprintf("Semantic Analyzer: Default case for '%T'.", n))
+			}
+		}
+	}
 }
 
 type CodeGenerator struct {
-	semantic_analysis SemanticAnalyzer
-	output            strings.Builder
+	output strings.Builder
 }
 
 func (g *CodeGenerator) generate(root ProgramNode) string {
@@ -381,16 +399,24 @@ func (g *CodeGenerator) generate(root ProgramNode) string {
 
 	for _, node := range root.Body {
 		switch n := node.(type) {
-		case VariableNode:
+		case *VariableNode:
 			{
 				switch v := n.Value.(type) {
 				case StringNode:
 					{
-						fmt.Fprintf(&g.output, "var %s any = \"%s\"\n", n.Name, v.Value)
+						if n.IsDeclared {
+							fmt.Fprintf(&g.output, "%s = \"%s\"\n", n.Name, v.Value)
+						} else {
+							fmt.Fprintf(&g.output, "var %s any = \"%s\"\n", n.Name, v.Value)
+						}
 					}
 				case IntegerNode:
 					{
-						fmt.Fprintf(&g.output, "var %s any = %d\n", n.Name, v.Value)
+						if n.IsDeclared {
+							fmt.Fprintf(&g.output, "%s = %d\n", n.Name, v.Value)
+						} else {
+							fmt.Fprintf(&g.output, "var %s any = %d\n", n.Name, v.Value)
+						}
 					}
 				default:
 					{
