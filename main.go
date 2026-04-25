@@ -426,6 +426,42 @@ func (g *CodeGenerator) generate(root ProgramNode) string {
 			}
 		case ConsoleCallNode:
 			{
+				switch n.Method {
+				case ConsoleLog:
+					{
+						fmt.Fprintf(&g.output, "fmt.Println(")
+						for i, arg := range n.Args {
+							switch v := arg.(type) {
+							case IntegerNode:
+								{
+									fmt.Fprintf(&g.output, "%d", v.Value)
+									if len(n.Args)-i > 1 {
+										fmt.Fprintf(&g.output, ", ")
+									}
+								}
+							case StringNode:
+								{
+									fmt.Fprintf(&g.output, "%s", v.Value)
+									if len(n.Args)-i > 1 {
+										fmt.Fprintf(&g.output, ", ")
+									}
+								}
+							case IdentifierNode:
+								{
+									fmt.Fprintf(&g.output, "%s", v.Name)
+									if len(n.Args)-i > 1 {
+										fmt.Fprintf(&g.output, ", ")
+									}
+								}
+							}
+						}
+						fmt.Fprintf(&g.output, ")\n")
+					}
+				default:
+					{
+						panic(fmt.Sprintf("CodeGenerator - ConsoleCallNode: method '%T' not implemented.", n.Method))
+					}
+				}
 			}
 		}
 	}
