@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -12,14 +13,33 @@ import (
 func main() {
 	js_code := read_file()
 	fmt.Println("Input (JavaScript):\n" + js_code)
+
 	tokens := lexer(js_code)
 	fmt.Println(tokens)
+
 	root_node := build_ast(tokens)
+
 	semantic_analyzer := NewSemanticAnalyzer()
 	semantic_analyzer.analyze(root_node)
+
 	generator := &CodeGenerator{}
 	output := generator.generate(root_node)
 	fmt.Println("\nResult:\n" + output)
+
+	fmt.Println("\nOutput:")
+	write_file(output)
+	cmd := exec.Command("go", "run", "output.go")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+	cmd = exec.Command("rm", "output.go")
+	err = cmd.Run()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func read_file() string {
@@ -28,6 +48,13 @@ func read_file() string {
 		panic(err)
 	}
 	return string(file)
+}
+
+func write_file(output string) {
+	err := os.WriteFile("output.go", []byte(output), 0o644)
+	if err != nil {
+		panic(err)
+	}
 }
 
 const (
