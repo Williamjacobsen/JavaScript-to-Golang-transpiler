@@ -43,7 +43,11 @@ func main() {
 }
 
 func read_file() string {
-	file, err := os.ReadFile("case1.js")
+	filename := "case1.js"
+	if len(os.Args) > 1 {
+		filename = os.Args[1]
+	}
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}

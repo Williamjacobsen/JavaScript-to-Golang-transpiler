@@ -15,7 +15,7 @@ Reads `case1.js` and outputs a runnable `output.go`.
 - `let` / `var` variable declarations
 - Reassignment of variables (typed as `any`)
 - `console.log()` → `fmt.Println()`
-- Strings and integers
+- Strings, integers, and expressions (`10 + 5`)
 
 ## Example
 
